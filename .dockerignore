@@ -1,0 +1,4 @@
+vendor/bundle
+tmp/
+/rubocop_cache
+/tmp/*
