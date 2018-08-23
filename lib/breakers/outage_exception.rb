@@ -1,7 +1,7 @@
 module Breakers
   # The error that is raised when a request is made against a service that is
   # experiencing an outage
-  class OutageException < StandardError
+  class OutageException < Faraday::TimeoutError
     attr_reader :outage
     attr_reader :service
 
