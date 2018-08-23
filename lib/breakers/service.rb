@@ -3,6 +3,10 @@ module Breakers
   # allows you to configure the outage detection for a service as well as to define which
   # requests belong to it.
   class Service
+    # Record only one success out of every 100. TODO make this constant
+    # a per-service attribute
+    SUCCESS_SAMPLE_RATE = 0.01
+
     DEFAULT_OPTS = {
       seconds_before_retry: 60,
       error_threshold: 50,
@@ -59,7 +63,7 @@ module Breakers
 
     # Indicate that a successful response has occurred
     def add_success
-      increment_key(key: successes_key)
+      increment_key(key: successes_key) if rand < SUCCESS_SAMPLE_RATE
     end
 
     # Force an outage to begin on the service. Forced outages are not periodically retested.
@@ -162,8 +166,8 @@ module Breakers
         Breakers.client.redis_connection.get(successes_key(time: Time.now.utc))
         Breakers.client.redis_connection.get(successes_key(time: Time.now.utc - 60))
       end
-      failure_count = data[0].to_i + data[1].to_i
-      success_count = data[2].to_i + data[3].to_i
+      failure_count =  data[0].to_i + data[1].to_i
+      success_count = (data[2].to_i + data[3].to_i) / SUCCESS_SAMPLE_RATE
 
       if failure_count > 0 && success_count == 0
         Outage.create(service: self)

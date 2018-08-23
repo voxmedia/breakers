@@ -415,6 +415,7 @@ describe 'integration suite' do
     end
   end
 
+  # TODO set fraction to 1.0
   context 'with a bunch of successes over the last few minutes' do
     let(:now) { Time.now.utc }
 
