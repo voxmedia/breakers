@@ -1,12 +1,8 @@
 # coding: utf-8
 
-lib = File.expand_path('../lib', __FILE__)
-$LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'breakers/version'
-
 Gem::Specification.new do |spec|
   spec.name          = 'breakers'
-  spec.version       = Breakers::VERSION
+  spec.version       = '0.2.5'
   spec.authors       = ['Aubrey Holland']
   spec.email         = ['aubrey@adhocteam.us']
 
