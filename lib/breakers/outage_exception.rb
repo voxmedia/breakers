@@ -1,3 +1,5 @@
+require 'faraday/error'
+
 module Breakers
   # The error that is raised when a request is made against a service that is
   # experiencing an outage
