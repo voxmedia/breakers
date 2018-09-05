@@ -295,30 +295,10 @@ describe 'integration suite' do
     let(:end_time) { Time.now.utc - 60 }
     let(:now_time) { Time.now.utc }
     before do
+      service.instance_variable_get(:@configuration)[:success_sample_rate] = 1
       Timecop.freeze(now_time)
       redis.zadd('VA-outages', start_time.to_i, MultiJson.dump(start_time: start_time.to_i, end_time: end_time))
       stub_request(:get, 'va.gov').to_return(status: 200)
-    end
-
-    # Wrap the examples to ensure all success messages get written to redis
-    def silence_warnings
-      original_verbosity = $VERBOSE
-      $VERBOSE = nil
-      result = yield
-      $VERBOSE = original_verbosity
-      result
-    end
-    around(:example) do |example|
-      original_success_sample_rate = nil
-      silence_warnings do
-        original_success_sample_rate = Breakers::Service::SUCCESS_SAMPLE_RATE
-        Breakers::Service::SUCCESS_SAMPLE_RATE = 1
-      end
-      result = example.run
-      silence_warnings do
-        Breakers::Service::SUCCESS_SAMPLE_RATE = original_success_sample_rate
-      end
-      result
     end
 
     it 'makes the request' do
@@ -357,6 +337,7 @@ describe 'integration suite' do
     let(:end_time) { Time.now.utc - 60 }
     let(:now_time) { Time.now.utc }
     before do
+      service.instance_variable_get(:@configuration)[:success_sample_rate] = 0.5
       Timecop.freeze(now_time)
       redis.zadd('VA-outages', start_time.to_i, MultiJson.dump(start_time: start_time.to_i, end_time: end_time))
       stub_request(:get, 'va.gov').to_return(status: 200)
@@ -372,10 +353,7 @@ describe 'integration suite' do
       result
     end
     around(:example) do |example|
-      original_success_sample_rate = nil
       silence_warnings do
-        original_success_sample_rate = Breakers::Service::SUCCESS_SAMPLE_RATE
-        Breakers::Service::SUCCESS_SAMPLE_RATE = 0.50
         class Breakers::Service
           @@_fake_rand = [0.75, 0.25]
           def rand
@@ -389,7 +367,6 @@ describe 'integration suite' do
         class Breakers::Service
           remove_method :rand
         end
-        Breakers::Service::SUCCESS_SAMPLE_RATE = original_success_sample_rate
       end
       result
     end
@@ -432,27 +409,6 @@ describe 'integration suite' do
     before do
       Timecop.freeze(now)
       redis.zadd('VA-outages', start_time.to_i, MultiJson.dump(start_time: start_time.to_i, forced: false))
-    end
-
-    # Wrap the examples to ensure all success messages get written to redis
-    def silence_warnings
-      original_verbosity = $VERBOSE
-      $VERBOSE = nil
-      result = yield
-      $VERBOSE = original_verbosity
-      result
-    end
-    around(:example) do |example|
-      original_success_sample_rate = nil
-      silence_warnings do
-        original_success_sample_rate = Breakers::Service::SUCCESS_SAMPLE_RATE
-        Breakers::Service::SUCCESS_SAMPLE_RATE = 1
-      end
-      result = example.run
-      silence_warnings do
-        Breakers::Service::SUCCESS_SAMPLE_RATE = original_success_sample_rate
-      end
-      result
     end
 
     it 'lets me query for the outage by time range' do
@@ -541,6 +497,9 @@ describe 'integration suite' do
 
   context 'with a bunch of successes over the last few minutes' do
     let(:now) { Time.now.utc }
+    before do
+      service.instance_variable_get(:@configuration)[:success_sample_rate] = 0.5
+    end
 
     # Wrap the examples to ensure exactly half of status messages get written
     # to (our mocked in-memory) redis, alternating, starting with false.
@@ -552,10 +511,7 @@ describe 'integration suite' do
       result
     end
     around(:example) do |example|
-      original_success_sample_rate = nil
       silence_warnings do
-        original_success_sample_rate = Breakers::Service::SUCCESS_SAMPLE_RATE
-        Breakers::Service::SUCCESS_SAMPLE_RATE = 0.50
         class Breakers::Service
           @@_fake_rand = [0.75, 0.25]
           def rand
@@ -569,7 +525,6 @@ describe 'integration suite' do
         class Breakers::Service
           remove_method :rand
         end
-        Breakers::Service::SUCCESS_SAMPLE_RATE = original_success_sample_rate
       end
       result
     end

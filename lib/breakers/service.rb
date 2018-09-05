@@ -3,14 +3,11 @@ module Breakers
   # allows you to configure the outage detection for a service as well as to define which
   # requests belong to it.
   class Service
-    # Record only one success out of every 100. TODO make this constant
-    # a per-service attribute
-    SUCCESS_SAMPLE_RATE = 0.01
-
     DEFAULT_OPTS = {
       seconds_before_retry: 60,
       error_threshold: 50,
-      data_retention_seconds: 60 * 60 * 24 * 30
+      data_retention_seconds: 60 * 60 * 24 * 30,
+      success_sample_rate: 1
     }.freeze
 
     # Create a new service
@@ -21,9 +18,13 @@ module Breakers
     # @option opts [Integer] :seconds_before_retry The number of seconds to wait after an outage begins before testing with a new request
     # @option opts [Integer] :error_threshold The percentage of errors over the last two minutes that indicates an outage
     # @option opts [Integer] :data_retention_seconds The number of seconds to retain success and error data in Redis
+    # @option opts [Float] :success_sample_rate The fractional chance a success will be written to Redis
     # @option opts [Proc] :exception_handler A proc taking an exception and returns true if it represents an error on the service
     def initialize(opts)
       @configuration = DEFAULT_OPTS.merge(opts)
+      @configuration[:success_sample_rate] = 0.000001 if @configuration[:success_sample_rate].to_f < 0.000001
+      @configuration[:success_sample_rate] = 1        if @configuration[:success_sample_rate].to_f > 1
+      @configuration
     end
 
     # Get the name of the service
@@ -48,6 +49,13 @@ module Breakers
       @configuration[:seconds_before_retry]
     end
 
+    # Get the success sample rate
+    #
+    # @return [Float] the value
+    def success_sample_rate
+      @configuration[:success_sample_rate]
+    end
+
     # Returns true if a given exception represents an error with the service
     #
     # @return [Boolean] is it an error?
@@ -63,7 +71,7 @@ module Breakers
 
     # Indicate that a successful response has occurred
     def add_success
-      increment_key(key: successes_key) if rand < SUCCESS_SAMPLE_RATE
+      increment_key(key: successes_key) if rand < success_sample_rate
     end
 
     # Force an outage to begin on the service. Forced outages are not periodically retested.
@@ -122,7 +130,7 @@ module Breakers
     def success_count_in_range(*args)
       counts = successes_in_range(*args)
       count = counts.map { |c| c[:count] }.inject(0) { |a, b| a + b }
-      self.class.weight_success_count(count)
+      weight_success_count(count)
     end
 
     protected
@@ -175,8 +183,8 @@ module Breakers
         Breakers.client.redis_connection.get(successes_key(time: Time.now.utc))
         Breakers.client.redis_connection.get(successes_key(time: Time.now.utc - 60))
       end
-      failure_count =                                 data[0].to_i + data[1].to_i
-      success_count = self.class.weight_success_count(data[2].to_i + data[3].to_i)
+      failure_count =                      data[0].to_i + data[1].to_i
+      success_count = weight_success_count(data[2].to_i + data[3].to_i)
 
       if failure_count > 0 && success_count == 0
         Outage.create(service: self)
@@ -188,8 +196,8 @@ module Breakers
       end
     end
 
-    def self.weight_success_count(count)
-      (count / SUCCESS_SAMPLE_RATE).round
+    def weight_success_count(count)
+      (count / success_sample_rate).round
     end
   end
 end
