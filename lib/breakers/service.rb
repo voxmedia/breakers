@@ -117,6 +117,14 @@ module Breakers
       values_in_range(start_time: start_time, end_time: end_time, type: :errors, sample_minutes: sample_minutes)
     end
 
+    # Return the count of successful requests in the time range
+    # (a statistical estimate).
+    def success_count_in_range(*args)
+      counts = successes_in_range(*args)
+      count = counts.map { |c| c[:count] }.inject(0) { |a, b| a + b }
+      self.class.weight_success_count(count)
+    end
+
     protected
 
     def errors_key(time: nil)
@@ -159,6 +167,7 @@ module Breakers
       time - (time % 60)
     end
 
+    # TODO This functionality is pretty hard-coded and could be more general
     def maybe_create_outage
       data = Breakers.client.redis_connection.multi do
         Breakers.client.redis_connection.get(errors_key(time: Time.now.utc))
@@ -166,8 +175,8 @@ module Breakers
         Breakers.client.redis_connection.get(successes_key(time: Time.now.utc))
         Breakers.client.redis_connection.get(successes_key(time: Time.now.utc - 60))
       end
-      failure_count =  data[0].to_i + data[1].to_i
-      success_count = (data[2].to_i + data[3].to_i) / SUCCESS_SAMPLE_RATE
+      failure_count =                                 data[0].to_i + data[1].to_i
+      success_count = self.class.weight_success_count(data[2].to_i + data[3].to_i)
 
       if failure_count > 0 && success_count == 0
         Outage.create(service: self)
@@ -177,6 +186,10 @@ module Breakers
           Outage.create(service: self)
         end
       end
+    end
+
+    def self.weight_success_count(count)
+      (count / SUCCESS_SAMPLE_RATE).round
     end
   end
 end
