@@ -327,17 +327,15 @@ describe 'integration suite' do
     end
 
     it 'adds a success to redis' do
+      response = connection.get '/'
       rounded_time = now_time.to_i - (now_time.to_i % 60)
       count = redis.get("VA-successes-#{rounded_time}")
       expect(count).to eq('1')
     end
 
-    it 'makes another request' do
+    it 'adds two successes to redis' do
       response = connection.get '/'
-      expect(response.status).to eq(200)
-    end
-
-    it 'adds another success to redis' do
+      response = connection.get '/'
       rounded_time = now_time.to_i - (now_time.to_i % 60)
       count = redis.get("VA-successes-#{rounded_time}")
       expect(count).to eq('2')
@@ -401,21 +399,20 @@ describe 'integration suite' do
       expect(response.status).to eq(200)
     end
 
-    it 'has added no success to redis yet' do
+    it 'adds success to redis after every other request' do
       rounded_time = now_time.to_i - (now_time.to_i % 60)
-      count = redis.get("VA-successes-#{rounded_time}")
-      expect(count).to eq('0')
-    end
-
-    it 'makes another request' do
       response = connection.get '/'
-      expect(response.status).to eq(200)
-    end
-
-    it 'now has added one success to redis' do
-      rounded_time = now_time.to_i - (now_time.to_i % 60)
+      count = redis.get("VA-successes-#{rounded_time}")
+      expect(count).to eq(nil)
+      response = connection.get '/'
       count = redis.get("VA-successes-#{rounded_time}")
       expect(count).to eq('1')
+      response = connection.get '/'
+      count = redis.get("VA-successes-#{rounded_time}")
+      expect(count).to eq('1')
+      response = connection.get '/'
+      count = redis.get("VA-successes-#{rounded_time}")
+      expect(count).to eq('2')
     end
 
     it 'informs the plugin about a success regardless of sample_rate' do
