@@ -290,11 +290,12 @@ describe 'integration suite' do
     end
   end
 
-  context 'there is a completed outage' do
+  context 'there is a completed outage with guaranteed success INCRs' do
     let(:start_time) { Time.now.utc - (60 * 60) }
     let(:end_time) { Time.now.utc - 60 }
     let(:now_time) { Time.now.utc }
     before do
+      service.instance_variable_get(:@configuration)[:success_sample_rate] = 1
       Timecop.freeze(now_time)
       redis.zadd('VA-outages', start_time.to_i, MultiJson.dump(start_time: start_time.to_i, end_time: end_time))
       stub_request(:get, 'va.gov').to_return(status: 200)
@@ -306,13 +307,92 @@ describe 'integration suite' do
     end
 
     it 'adds a success to redis' do
-      connection.get '/'
+      response = connection.get '/'
       rounded_time = now_time.to_i - (now_time.to_i % 60)
       count = redis.get("VA-successes-#{rounded_time}")
       expect(count).to eq('1')
     end
 
-    it 'informs the plugin about the success' do
+    it 'adds two successes to redis' do
+      response = connection.get '/'
+      response = connection.get '/'
+      rounded_time = now_time.to_i - (now_time.to_i % 60)
+      count = redis.get("VA-successes-#{rounded_time}")
+      expect(count).to eq('2')
+    end
+
+    it 'informs the plugin about a success' do
+      expect(plugin).to receive(:on_success).with(service, instance_of(Faraday::Env), instance_of(Faraday::Env))
+      connection.get '/'
+    end
+
+    it 'should not tell the plugin about a skipped request' do
+      expect(plugin).not_to receive(:on_skipped_request)
+      connection.get '/'
+    end
+  end
+
+  context 'there is a completed outage with pseudo-random success INCRs' do
+    let(:start_time) { Time.now.utc - (60 * 60) }
+    let(:end_time) { Time.now.utc - 60 }
+    let(:now_time) { Time.now.utc }
+    before do
+      service.instance_variable_get(:@configuration)[:success_sample_rate] = 0.5
+      Timecop.freeze(now_time)
+      redis.zadd('VA-outages', start_time.to_i, MultiJson.dump(start_time: start_time.to_i, end_time: end_time))
+      stub_request(:get, 'va.gov').to_return(status: 200)
+    end
+
+    # Wrap the examples to ensure exactly half of status messages get written
+    # to (our mocked in-memory) redis, alternating, starting with false.
+    def silence_warnings
+      original_verbosity = $VERBOSE
+      $VERBOSE = nil
+      result = yield
+      $VERBOSE = original_verbosity
+      result
+    end
+    around(:example) do |example|
+      silence_warnings do
+        class Breakers::Service
+          @@_fake_rand = [0.75, 0.25]
+          def rand
+            @@_fake_rand.push(@@_fake_rand.shift)
+            @@_fake_rand[-1]
+          end
+        end
+      end
+      result = example.run
+      silence_warnings do
+        class Breakers::Service
+          remove_method :rand
+        end
+      end
+      result
+    end
+
+    it 'makes the request' do
+      response = connection.get '/'
+      expect(response.status).to eq(200)
+    end
+
+    it 'adds success to redis after every other request' do
+      rounded_time = now_time.to_i - (now_time.to_i % 60)
+      response = connection.get '/'
+      count = redis.get("VA-successes-#{rounded_time}")
+      expect(count).to eq(nil)
+      response = connection.get '/'
+      count = redis.get("VA-successes-#{rounded_time}")
+      expect(count).to eq('1')
+      response = connection.get '/'
+      count = redis.get("VA-successes-#{rounded_time}")
+      expect(count).to eq('1')
+      response = connection.get '/'
+      count = redis.get("VA-successes-#{rounded_time}")
+      expect(count).to eq('2')
+    end
+
+    it 'informs the plugin about a success regardless of sample_rate' do
       expect(plugin).to receive(:on_success).with(service, instance_of(Faraday::Env), instance_of(Faraday::Env))
       connection.get '/'
     end
@@ -390,7 +470,7 @@ describe 'integration suite' do
         expect(response.status).to eq(500)
       end
 
-      it 'updates the last_test_time in the outate' do
+      it 'updates the last_test_time in the outage' do
         connection.get '/'
         expect(service.latest_outage.last_test_time.to_i).to eq(now.to_i)
       end
@@ -417,6 +497,37 @@ describe 'integration suite' do
 
   context 'with a bunch of successes over the last few minutes' do
     let(:now) { Time.now.utc }
+    before do
+      service.instance_variable_get(:@configuration)[:success_sample_rate] = 0.5
+    end
+
+    # Wrap the examples to ensure exactly half of status messages get written
+    # to (our mocked in-memory) redis, alternating, starting with false.
+    def silence_warnings
+      original_verbosity = $VERBOSE
+      $VERBOSE = nil
+      result = yield
+      $VERBOSE = original_verbosity
+      result
+    end
+    around(:example) do |example|
+      silence_warnings do
+        class Breakers::Service
+          @@_fake_rand = [0.75, 0.25]
+          def rand
+            @@_fake_rand.push(@@_fake_rand.shift)
+            @@_fake_rand[-1]
+          end
+        end
+      end
+      result = example.run
+      silence_warnings do
+        class Breakers::Service
+          remove_method :rand
+        end
+      end
+      result
+    end
 
     before do
       Timecop.freeze(now - 90)
@@ -447,8 +558,7 @@ describe 'integration suite' do
     end
 
     it 'lets me query for successes in a time range' do
-      counts = service.successes_in_range(start_time: now - 120, end_time: now, sample_minutes: 1)
-      count = counts.map { |c| c[:count] }.inject(0) { |a, b| a + b }
+      count = service.success_count_in_range(start_time: now - 120, end_time: now, sample_minutes: 1)
       expect(count).to eq(100)
     end
   end
