@@ -383,13 +383,13 @@ describe 'integration suite' do
       expect(count).to eq(nil)
       response = connection.get '/'
       count = redis.get("VA-successes-#{rounded_time}")
-      expect(count).to eq('1')
-      response = connection.get '/'
-      count = redis.get("VA-successes-#{rounded_time}")
-      expect(count).to eq('1')
+      expect(count).to eq('2')
       response = connection.get '/'
       count = redis.get("VA-successes-#{rounded_time}")
       expect(count).to eq('2')
+      response = connection.get '/'
+      count = redis.get("VA-successes-#{rounded_time}")
+      expect(count).to eq('4')
     end
 
     it 'informs the plugin about a success regardless of sample_rate' do

@@ -71,7 +71,10 @@ module Breakers
 
     # Indicate that a successful response has occurred
     def add_success
-      increment_key(key: successes_key) if rand < success_sample_rate
+      if rand < success_sample_rate
+        incrby = 1/success_sample_rate
+        increment_key(key: successes_key, by: incrby)
+      end
     end
 
     # Force an outage to begin on the service. Forced outages are not periodically retested.
@@ -162,9 +165,13 @@ module Breakers
       end
     end
 
-    def increment_key(key:)
+    def increment_key(key:, by: 1)
       Breakers.client.redis_connection.multi do
-        Breakers.client.redis_connection.incr(key)
+        if by == 1
+          Breakers.client.redis_connection.incr(key)
+        else
+          Breakers.client.redis_connection.incrby(key, by)
+        end
         Breakers.client.redis_connection.expire(key, @configuration[:data_retention_seconds])
       end
     end
@@ -197,7 +204,7 @@ module Breakers
     end
 
     def weight_success_count(count)
-      (count / success_sample_rate).round
+      count
     end
   end
 end
