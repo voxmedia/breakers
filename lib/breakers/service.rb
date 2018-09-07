@@ -7,7 +7,7 @@ module Breakers
       seconds_before_retry: 60,
       error_threshold: 50,
       data_retention_seconds: 60 * 60 * 24 * 30,
-      success_sample_rate: 1
+      success_sample_per: 1
     }.freeze
 
     # Create a new service
@@ -18,12 +18,13 @@ module Breakers
     # @option opts [Integer] :seconds_before_retry The number of seconds to wait after an outage begins before testing with a new request
     # @option opts [Integer] :error_threshold The percentage of errors over the last two minutes that indicates an outage
     # @option opts [Integer] :data_retention_seconds The number of seconds to retain success and error data in Redis
-    # @option opts [Float] :success_sample_rate The fractional chance a success will be written to Redis
+    # @option opts [Integer] :success_sample_per The number of successes (statistically) before those successes are counted
     # @option opts [Proc] :exception_handler A proc taking an exception and returns true if it represents an error on the service
     def initialize(opts)
       @configuration = DEFAULT_OPTS.merge(opts)
-      @configuration[:success_sample_rate] = 0.000001 if @configuration[:success_sample_rate].to_f < 0.000001
-      @configuration[:success_sample_rate] = 1        if @configuration[:success_sample_rate].to_f > 1
+      per = @configuration[:success_sample_per].to_i
+      per = [1, [per, 1_000_000].min].max
+      @configuration[:success_sample_per] = per
       @configuration
     end
 
@@ -49,11 +50,11 @@ module Breakers
       @configuration[:seconds_before_retry]
     end
 
-    # Get the success sample rate
+    # Get the success sample per
     #
-    # @return [Float] the value
-    def success_sample_rate
-      @configuration[:success_sample_rate]
+    # @return [Integer] the value
+    def success_sample_per
+      @configuration[:success_sample_per]
     end
 
     # Returns true if a given exception represents an error with the service
@@ -71,9 +72,10 @@ module Breakers
 
     # Indicate that a successful response has occurred
     def add_success
-      if rand < success_sample_rate
-        incrby = 1/success_sample_rate
-        increment_key(key: successes_key, by: incrby)
+      if success_sample_per == 1
+        increment_key(key: successes_key)
+      elsif rand < 1.0/success_sample_per
+        increment_key(key: successes_key, by: success_sample_per)
       end
     end
 
