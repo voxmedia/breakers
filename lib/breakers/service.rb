@@ -134,8 +134,7 @@ module Breakers
     # (a statistical estimate).
     def success_count_in_range(*args)
       counts = successes_in_range(*args)
-      count = counts.map { |c| c[:count] }.inject(0) { |a, b| a + b }
-      weight_success_count(count)
+      counts.map { |c| c[:count] }.inject(0) { |a, b| a + b }
     end
 
     protected
@@ -192,8 +191,8 @@ module Breakers
         Breakers.client.redis_connection.get(successes_key(time: Time.now.utc))
         Breakers.client.redis_connection.get(successes_key(time: Time.now.utc - 60))
       end
-      failure_count =                      data[0].to_i + data[1].to_i
-      success_count = weight_success_count(data[2].to_i + data[3].to_i)
+      failure_count = data[0].to_i + data[1].to_i
+      success_count = data[2].to_i + data[3].to_i
 
       if failure_count > 0 && success_count == 0
         Outage.create(service: self)
@@ -203,10 +202,6 @@ module Breakers
           Outage.create(service: self)
         end
       end
-    end
-
-    def weight_success_count(count)
-      count
     end
   end
 end
