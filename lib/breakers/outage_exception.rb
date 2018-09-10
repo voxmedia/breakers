@@ -7,13 +7,21 @@ module Breakers
     attr_reader :outage
     attr_reader :service
 
-    def initialize(outage, service)
+    def initialize(outage = nil, service = nil)
       @outage = outage
       @service = service
     end
 
+    def service_name
+      @service.try(:name) ? @service.name : 'unknown_service'
+    end
+
+    def outage_start_time
+      @outage.try(:start_time) ? @outage.start_time : nil
+    end
+
     def message
-      "Outage detected on #{@service.name} beginning at #{@outage.start_time.to_i}"
+      "Outage detected on #{service_name} beginning at #{outage_start_time.to_i}"
     end
   end
 end
