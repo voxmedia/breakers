@@ -295,7 +295,7 @@ describe 'integration suite' do
     let(:end_time) { Time.now.utc - 60 }
     let(:now_time) { Time.now.utc }
     before do
-      service.instance_variable_get(:@configuration)[:success_sample_rate] = 1
+      service.instance_variable_get(:@configuration)[:success_sample_per] = 1
       Timecop.freeze(now_time)
       redis.zadd('VA-outages', start_time.to_i, MultiJson.dump(start_time: start_time.to_i, end_time: end_time))
       stub_request(:get, 'va.gov').to_return(status: 200)
@@ -337,7 +337,7 @@ describe 'integration suite' do
     let(:end_time) { Time.now.utc - 60 }
     let(:now_time) { Time.now.utc }
     before do
-      service.instance_variable_get(:@configuration)[:success_sample_rate] = 0.5
+      service.instance_variable_get(:@configuration)[:success_sample_per] = 2
       Timecop.freeze(now_time)
       redis.zadd('VA-outages', start_time.to_i, MultiJson.dump(start_time: start_time.to_i, end_time: end_time))
       stub_request(:get, 'va.gov').to_return(status: 200)
@@ -383,16 +383,16 @@ describe 'integration suite' do
       expect(count).to eq(nil)
       response = connection.get '/'
       count = redis.get("VA-successes-#{rounded_time}")
-      expect(count).to eq('1')
-      response = connection.get '/'
-      count = redis.get("VA-successes-#{rounded_time}")
-      expect(count).to eq('1')
+      expect(count).to eq('2')
       response = connection.get '/'
       count = redis.get("VA-successes-#{rounded_time}")
       expect(count).to eq('2')
+      response = connection.get '/'
+      count = redis.get("VA-successes-#{rounded_time}")
+      expect(count).to eq('4')
     end
 
-    it 'informs the plugin about a success regardless of sample_rate' do
+    it 'informs the plugin about a success regardless of sample_per' do
       expect(plugin).to receive(:on_success).with(service, instance_of(Faraday::Env), instance_of(Faraday::Env))
       connection.get '/'
     end
@@ -498,7 +498,7 @@ describe 'integration suite' do
   context 'with a bunch of successes over the last few minutes' do
     let(:now) { Time.now.utc }
     before do
-      service.instance_variable_get(:@configuration)[:success_sample_rate] = 0.5
+      service.instance_variable_get(:@configuration)[:success_sample_per] = 2
     end
 
     # Wrap the examples to ensure exactly half of status messages get written
