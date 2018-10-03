@@ -559,8 +559,6 @@ describe 'integration suite' do
       Timecop.freeze(now - 30)
       stub_request(:get, 'va.gov').to_return(status: 200, body: 'abcdef')
       40.times { connection.get '/' }
-
-      Timecop.freeze(now)
     end
 
     it 'does not record an outage on a single failure' do
@@ -686,7 +684,7 @@ describe 'integration suite' do
         request_matcher: proc { |request_env| request_env.url.host =~ /.*va.gov/ },
         seconds_before_retry: 60,
         error_threshold: 50,
-        outage_check_throttle_seconds: 10
+        seconds_between_outage_checks: 10
       )
     end
 

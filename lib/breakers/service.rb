@@ -9,7 +9,7 @@ module Breakers
       error_threshold: 50,
       data_retention_seconds: 60 * 60 * 24 * 30,
       success_sample_per: 1,
-      outage_check_throttle_seconds: 0
+      seconds_between_outage_checks: 0
     }.freeze
 
     # Create a new service
@@ -95,9 +95,9 @@ module Breakers
     end
 
     # Return the most recent outage on the service, throttled to reference
-    # redis at most once every `outage_check_throttle_seconds`
+    # redis at most once every `seconds_between_outage_checks`
     def latest_outage
-      throttle = @configuration[:outage_check_throttle_seconds]
+      throttle = @configuration[:seconds_between_outage_checks]
       if !@latest_outage_fetched.nil? && @latest_outage_fetched > Time.now - throttle
         @latest_outage
       else
