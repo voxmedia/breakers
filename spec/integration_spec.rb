@@ -49,7 +49,29 @@ describe 'integration suite' do
 
     it 'creates an outage' do
       connection.get '/'
-      expect(service.latest_outage).to be
+      expect(service.latest_outage).to be_truthy
+    end
+
+    context 'with min_errors' do
+      let(:service) do
+        Breakers::Service.new(
+          name: 'VA',
+          request_matcher: proc { |request_env| request_env.url.host =~ /.*va.gov/ },
+          seconds_before_retry: 60,
+          error_threshold: 50,
+          min_errors: 3
+        )
+      end
+
+      it 'does not create an outage with a single error' do
+        connection.get '/'
+        expect(service.latest_outage).to be_nil
+      end
+
+      it 'creates an outage after many errors' do
+        3.times { connection.get '/' }
+        expect(service.latest_outage).to be_truthy
+      end
     end
 
     it 'logs the error' do
