@@ -73,6 +73,7 @@ Each service can be further configured with the following:
 * `error_threshold` - The percentage of errors over which an outage will be reported. Defaults to 50.
 * `data_retention_seconds` - The number of seconds for which data will be stored in Redis for successful and unsuccessful request counts. See below for information on the structure of data within Redis. Defaults to 30 days.
 * `success_sample_per` - Record every Nth success by incrementing by N. e.g. Specifying 5 will increment the success count by 5, 20% (1/5) of the time. Helps to reduce write traffic to Redis. Defaults to 1 (no sampling).
+* `seconds_between_outage_checks` - Check redis for a recorded outage at most once per this time period. Helps to reduce read traffic to Redis. Defaults to 0.
 
 ### Client
 

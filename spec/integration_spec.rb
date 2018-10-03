@@ -675,4 +675,24 @@ describe 'integration suite' do
       expect(response.env[:duration]).to be
     end
   end
+
+  context 'with throttling of outage checks' do
+    let(:now) { Time.now.utc }
+    let(:service) do
+      Breakers::Service.new(
+        name: 'VA',
+        request_matcher: proc { |request_env| request_env.url.host =~ /.*va.gov/ },
+        seconds_before_retry: 60,
+        error_threshold: 50,
+        seconds_between_outage_checks: 10
+      )
+    end
+
+    it 'only checks for outages once every 10 seconds' do
+      expect(redis).to receive(:zrange).twice.and_return([])
+      2.times { service.latest_outage }
+      Timecop.freeze(now + 10)
+      2.times { service.latest_outage }
+    end
+  end
 end
