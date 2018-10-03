@@ -8,7 +8,8 @@ module Breakers
       min_errors: 1,
       error_threshold: 50,
       data_retention_seconds: 60 * 60 * 24 * 30,
-      success_sample_per: 1
+      success_sample_per: 1,
+      outage_check_throttle_seconds: 0
     }.freeze
 
     # Create a new service
@@ -93,9 +94,16 @@ module Breakers
       end
     end
 
-    # Return the most recent outage on the service
+    # Return the most recent outage on the service, throttled to reference
+    # redis at most once every `outage_check_throttle_seconds`
     def latest_outage
-      Outage.find_latest(service: self)
+      throttle = @configuration[:outage_check_throttle_seconds]
+      if !@latest_outage_fetched.nil? && @latest_outage_fetched > Time.now - throttle
+        @latest_outage
+      else
+        @latest_outage_fetched = Time.now
+        @latest_outage = Outage.find_latest(service: self)
+      end
     end
 
     # Return a list of all outages in the given time range

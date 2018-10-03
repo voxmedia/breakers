@@ -559,6 +559,8 @@ describe 'integration suite' do
       Timecop.freeze(now - 30)
       stub_request(:get, 'va.gov').to_return(status: 200, body: 'abcdef')
       40.times { connection.get '/' }
+
+      Timecop.freeze(now)
     end
 
     it 'does not record an outage on a single failure' do
@@ -673,6 +675,26 @@ describe 'integration suite' do
     it 'gives me the request duration' do
       response = connection.get '/'
       expect(response.env[:duration]).to be
+    end
+  end
+
+  context 'with throttling of outage checks' do
+    let(:now) { Time.now.utc }
+    let(:service) do
+      Breakers::Service.new(
+        name: 'VA',
+        request_matcher: proc { |request_env| request_env.url.host =~ /.*va.gov/ },
+        seconds_before_retry: 60,
+        error_threshold: 50,
+        outage_check_throttle_seconds: 10
+      )
+    end
+
+    it 'only checks for outages once every 10 seconds' do
+      expect(redis).to receive(:zrange).twice.and_return([])
+      2.times { service.latest_outage }
+      Timecop.freeze(now + 10)
+      2.times { service.latest_outage }
     end
   end
 end
