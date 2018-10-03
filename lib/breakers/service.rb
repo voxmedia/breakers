@@ -5,6 +5,7 @@ module Breakers
   class Service
     DEFAULT_OPTS = {
       seconds_before_retry: 60,
+      min_errors: 1,
       error_threshold: 50,
       data_retention_seconds: 60 * 60 * 24 * 30,
       success_sample_per: 1
@@ -191,10 +192,14 @@ module Breakers
         Breakers.client.redis_connection.get(successes_key(time: Time.now.utc))
         Breakers.client.redis_connection.get(successes_key(time: Time.now.utc - 60))
       end
+
+      # Note: these two lines make use of the fact that nil.to_i == 0
       failure_count = data[0].to_i + data[1].to_i
       success_count = data[2].to_i + data[3].to_i
 
-      if failure_count > 0 && success_count == 0
+      return if failure_count < @configuration[:min_errors]
+
+      if success_count == 0
         Outage.create(service: self)
       else
         failure_rate = failure_count / (failure_count + success_count).to_f
