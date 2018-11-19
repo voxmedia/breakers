@@ -82,7 +82,7 @@ describe 'integration suite' do
     end
 
     it 'tells plugins about the error' do
-      expect(plugin).to receive(:on_error).with(service, instance_of(Faraday::Env), instance_of(Faraday::Env))
+      expect(plugin).to receive(:on_error).with(service: service, request_env: instance_of(Faraday::Env), response_env: instance_of(Faraday::Env), error: 500)
       connection.get '/'
     end
 
@@ -185,7 +185,7 @@ describe 'integration suite' do
     end
 
     it 'tells plugins about the timeout' do
-      expect(plugin).to receive(:on_error).with(service, instance_of(Faraday::Env), nil)
+      expect(plugin).to receive(:on_error).with(service: service, request_env: instance_of(Faraday::Env), response_env: nil, error: /Faraday::ConnectionFailed/)
       begin
         connection.get '/'
       rescue Faraday::ConnectionFailed
@@ -227,7 +227,7 @@ describe 'integration suite' do
       end
 
       it 'does not tell plugins about the timeout' do
-        expect(plugin).not_to receive(:on_error).with(service, instance_of(Faraday::Env), nil)
+        expect(plugin).not_to receive(:on_error).with(service: service, request_env: instance_of(Faraday::Env), response_env: nil, error: /StandardError/)
         begin
           connection.get '/'
         rescue
@@ -276,7 +276,7 @@ describe 'integration suite' do
       end
 
       it 'tells plugins about the timeout' do
-        expect(plugin).to receive(:on_error).with(service, instance_of(Faraday::Env), nil)
+        expect(plugin).to receive(:on_error).with(service: service, request_env: instance_of(Faraday::Env), response_env: nil, error: /StandardError/)
         begin
           connection.get '/'
         rescue
@@ -329,7 +329,7 @@ describe 'integration suite' do
     end
 
     it 'adds a success to redis' do
-      response = connection.get '/'
+      connection.get '/'
       rounded_time = now_time.to_i - (now_time.to_i % 60)
       count = redis.get("VA-successes-#{rounded_time}")
       expect(count).to eq('1')
@@ -344,7 +344,7 @@ describe 'integration suite' do
     end
 
     it 'informs the plugin about a success' do
-      expect(plugin).to receive(:on_success).with(service, instance_of(Faraday::Env), instance_of(Faraday::Env))
+      expect(plugin).to receive(:on_success).with(service: service, request_env: instance_of(Faraday::Env), response_env: instance_of(Faraday::Env))
       connection.get '/'
     end
 
@@ -415,7 +415,7 @@ describe 'integration suite' do
     end
 
     it 'informs the plugin about a success regardless of sample_per' do
-      expect(plugin).to receive(:on_success).with(service, instance_of(Faraday::Env), instance_of(Faraday::Env))
+      expect(plugin).to receive(:on_success).with(service: service, request_env: instance_of(Faraday::Env), response_env: instance_of(Faraday::Env))
       connection.get '/'
     end
 

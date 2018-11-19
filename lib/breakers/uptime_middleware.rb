@@ -68,7 +68,7 @@ module Breakers
           current_outage&.end!
 
           Breakers.client.plugins.each do |plugin|
-            plugin.on_success(service, request_env, response_env) if plugin.respond_to?(:on_success)
+            plugin.on_success(service: service, request_env: request_env, response_env: response_env) if plugin.respond_to?(:on_success)
           end
         end
       end
@@ -105,7 +105,7 @@ module Breakers
         error: error
       )
       Breakers.client.plugins.each do |plugin|
-        plugin.on_error(service, request_env, response_env) if plugin.respond_to?(:on_error)
+        plugin.on_error(service: service, request_env: request_env, response_env: response_env, error: error) if plugin.respond_to?(:on_error)
       end
     end
   end
