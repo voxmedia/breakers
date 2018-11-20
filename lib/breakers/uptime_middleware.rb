@@ -60,7 +60,7 @@ module Breakers
             service: service,
             request_env: request_env,
             response_env: response_env,
-            error: response_env.status,
+            response_status: response_env.status,
             current_outage: current_outage
           )
         else
@@ -68,7 +68,7 @@ module Breakers
           current_outage&.end!
 
           Breakers.client.plugins.each do |plugin|
-            plugin.on_success(service, request_env, response_env) if plugin.respond_to?(:on_success)
+            plugin.on_success(service: service, request_env: request_env, response_env: response_env) if plugin.respond_to?(:on_success)
           end
         end
       end
@@ -76,8 +76,7 @@ module Breakers
       handle_error(
         service: service,
         request_env: request_env,
-        response_env: nil,
-        error: "#{e.class.name} - #{e.message}",
+        exception: e,
         current_outage: current_outage
       )
       raise
@@ -86,18 +85,22 @@ module Breakers
         handle_error(
           service: service,
           request_env: request_env,
-          response_env: nil,
-          error: "#{e.class.name} - #{e.message}",
+          exception: e,
           current_outage: current_outage
         )
       end
       raise
     end
 
-    def handle_error(service:, request_env:, response_env:, error:, current_outage: nil)
+    def handle_error(service:, request_env:, response_env: nil, response_status: nil, exception: nil, current_outage: nil)
       service.add_error
       current_outage&.update_last_test_time!
 
+      error = if exception
+                "#{exception.class.name} - #{exception.message}"
+              elsif response_status
+                "#{response_status}"
+              end
       Breakers.client.logger&.warn(
         msg: 'Breakers failed request',
         service: service.name,
@@ -105,7 +108,7 @@ module Breakers
         error: error
       )
       Breakers.client.plugins.each do |plugin|
-        plugin.on_error(service, request_env, response_env) if plugin.respond_to?(:on_error)
+        plugin.on_error(service: service, request_env: request_env, response_env: response_env, response_status: response_status, exception: exception) if plugin.respond_to?(:on_error)
       end
     end
   end
