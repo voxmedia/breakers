@@ -77,7 +77,7 @@ module Breakers
         service: service,
         request_env: request_env,
         response_env: nil,
-        error: "#{e.class.name} - #{e.message}",
+        error: e,
         current_outage: current_outage
       )
       raise
@@ -87,7 +87,7 @@ module Breakers
           service: service,
           request_env: request_env,
           response_env: nil,
-          error: "#{e.class.name} - #{e.message}",
+          error: e,
           current_outage: current_outage
         )
       end
@@ -102,7 +102,7 @@ module Breakers
         msg: 'Breakers failed request',
         service: service.name,
         url: request_env.url.to_s,
-        error: error
+        error: error.is_a?(Exception) ? "#{error.class.name} - #{error.message}" : error
       )
       Breakers.client.plugins.each do |plugin|
         plugin.on_error(service: service, request_env: request_env, response_env: response_env, error: error) if plugin.respond_to?(:on_error)

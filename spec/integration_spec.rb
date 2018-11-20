@@ -185,7 +185,7 @@ describe 'integration suite' do
     end
 
     it 'tells plugins about the timeout' do
-      expect(plugin).to receive(:on_error).with(service: service, request_env: instance_of(Faraday::Env), response_env: nil, error: /Faraday::ConnectionFailed/)
+      expect(plugin).to receive(:on_error).with(service: service, request_env: instance_of(Faraday::Env), response_env: nil, error: instance_of(Faraday::ConnectionFailed))
       begin
         connection.get '/'
       rescue Faraday::ConnectionFailed
@@ -227,7 +227,7 @@ describe 'integration suite' do
       end
 
       it 'does not tell plugins about the timeout' do
-        expect(plugin).not_to receive(:on_error).with(service: service, request_env: instance_of(Faraday::Env), response_env: nil, error: /StandardError/)
+        expect(plugin).not_to receive(:on_error).with(service: service, request_env: instance_of(Faraday::Env), response_env: nil, error: instance_of(StandardError))
         begin
           connection.get '/'
         rescue
@@ -276,7 +276,7 @@ describe 'integration suite' do
       end
 
       it 'tells plugins about the timeout' do
-        expect(plugin).to receive(:on_error).with(service: service, request_env: instance_of(Faraday::Env), response_env: nil, error: /StandardError/)
+        expect(plugin).to receive(:on_error).with(service: service, request_env: instance_of(Faraday::Env), response_env: nil, error: instance_of(StandardError))
         begin
           connection.get '/'
         rescue
