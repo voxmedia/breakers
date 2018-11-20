@@ -76,13 +76,13 @@ describe 'integration suite' do
 
     it 'logs the error' do
       expect(logger).to receive(:warn).with(
-        msg: 'Breakers failed request', service: 'VA', url: 'http://va.gov/', error: 500
+        msg: 'Breakers failed request', service: 'VA', url: 'http://va.gov/', error: '500'
       )
       connection.get '/'
     end
 
     it 'tells plugins about the error' do
-      expect(plugin).to receive(:on_error).with(service: service, request_env: instance_of(Faraday::Env), response_env: instance_of(Faraday::Env), error: 500)
+      expect(plugin).to receive(:on_error).with(service: service, request_env: instance_of(Faraday::Env), response_env: instance_of(Faraday::Env), response_status: 500, exception: nil)
       connection.get '/'
     end
 
@@ -185,7 +185,7 @@ describe 'integration suite' do
     end
 
     it 'tells plugins about the timeout' do
-      expect(plugin).to receive(:on_error).with(service: service, request_env: instance_of(Faraday::Env), response_env: nil, error: instance_of(Faraday::ConnectionFailed))
+      expect(plugin).to receive(:on_error).with(service: service, request_env: instance_of(Faraday::Env), response_env: nil, response_status: nil, exception: instance_of(Faraday::ConnectionFailed))
       begin
         connection.get '/'
       rescue Faraday::ConnectionFailed
@@ -227,7 +227,7 @@ describe 'integration suite' do
       end
 
       it 'does not tell plugins about the timeout' do
-        expect(plugin).not_to receive(:on_error).with(service: service, request_env: instance_of(Faraday::Env), response_env: nil, error: instance_of(StandardError))
+        expect(plugin).not_to receive(:on_error).with(service: service, request_env: instance_of(Faraday::Env), response_env: nil, response_status: nil, exception: instance_of(Faraday::ConnectionFailed))
         begin
           connection.get '/'
         rescue
@@ -276,7 +276,7 @@ describe 'integration suite' do
       end
 
       it 'tells plugins about the timeout' do
-        expect(plugin).to receive(:on_error).with(service: service, request_env: instance_of(Faraday::Env), response_env: nil, error: instance_of(StandardError))
+        expect(plugin).to receive(:on_error).with(service: service, request_env: instance_of(Faraday::Env), response_env: nil, response_status: nil, exception: instance_of(StandardError))
         begin
           connection.get '/'
         rescue

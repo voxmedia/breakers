@@ -135,7 +135,7 @@ class ExamplePlugin
 
   def on_outage_end(outage); end
 
-  def on_error(service:, request_env:, response_env:, error:); end
+  def on_error(service:, request_env:, response_env:, response_status:, exception:); end
 
   def on_success(service:, request_env:, response_env:); end
 end
