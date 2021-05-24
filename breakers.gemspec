@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |spec|
   spec.name          = 'breakers'
-  spec.version       = '1.0.0'
+  spec.version       = '1.0.1'
   spec.authors       = ['Aubrey Holland']
   spec.email         = ['aubrey@adhocteam.us']
 
@@ -18,7 +18,7 @@ Gem::Specification.new do |spec|
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ['lib']
 
-  spec.add_dependency 'faraday', ['>= 0.7.4', '< 0.12']
+  spec.add_dependency 'faraday', '>= 0.7.4'
   spec.add_dependency 'multi_json', '~> 1.0'
 
   spec.add_development_dependency 'bundler', '~> 1.0'
