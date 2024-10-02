@@ -176,13 +176,13 @@ module Breakers
     end
 
     def increment_key(key:, by: 1)
-      Breakers.client.redis_connection.multi do
+      Breakers.client.redis_connection.multi do |pipeline|
         if by == 1
-          Breakers.client.redis_connection.incr(key)
+          pipeline.incr(key)
         else
-          Breakers.client.redis_connection.incrby(key, by)
+          pipeline.incrby(key, by)
         end
-        Breakers.client.redis_connection.expire(key, @configuration[:data_retention_seconds])
+        pipeline.expire(key, @configuration[:data_retention_seconds])
       end
     end
 
@@ -194,11 +194,11 @@ module Breakers
 
     # TODO This functionality is pretty hard-coded and could be more general
     def maybe_create_outage
-      data = Breakers.client.redis_connection.multi do
-        Breakers.client.redis_connection.get(errors_key(time: Time.now.utc))
-        Breakers.client.redis_connection.get(errors_key(time: Time.now.utc - 60))
-        Breakers.client.redis_connection.get(successes_key(time: Time.now.utc))
-        Breakers.client.redis_connection.get(successes_key(time: Time.now.utc - 60))
+      data = Breakers.client.redis_connection.multi do |pipeline|
+        pipeline.get(errors_key(time: Time.now.utc))
+        pipeline.get(errors_key(time: Time.now.utc - 60))
+        pipeline.get(successes_key(time: Time.now.utc))
+        pipeline.get(successes_key(time: Time.now.utc - 60))
       end
 
       # Note: these two lines make use of the fact that nil.to_i == 0
