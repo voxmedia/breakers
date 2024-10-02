@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |spec|
   spec.name          = 'breakers'
-  spec.version       = '1.0.1'
+  spec.version       = '1.0.2'
   spec.authors       = ['Aubrey Holland']
   spec.email         = ['aubrey@adhocteam.us']
 
